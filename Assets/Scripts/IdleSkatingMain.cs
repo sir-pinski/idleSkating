@@ -1,140 +1,105 @@
-﻿using System;
-using System.Threading;
+﻿using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class IdleSkatingMain : MonoBehaviour
 {
-    
+    // Initialization
+    private bool _gameInitialized; // Set to false to start, true once a new game is started. Ensures we don't reset game. 
 
     
     // Resources
-    public int influence;
-    public int influencePerDay;
-
-    public Text influenceText;
-    public Text influencePerDayText;
+    private double _money; // Cash on hand
+    private int _time; // Time able to devote to growth
     
-
-    // Pacing
-    private double dayProgress;
-    private double days;
-    private Text DaysText;
+    public Text moneyDisplay;
     
-    // Visualization Bars
+    // Calculations
+    private double _dt; // Delta time
 
-    private Slider speedSlider;
-    private Text sliderTime;
+// Visualization Bars
+
+    private Slider _speedSlider;
+    private Text _sliderTime;
     
     // Click Data
-    private double coinsPerClick;
+    private double _coinsPerClick;
     
     // Navigation
-    private string[] navStates; // Reference for various nav states
-    private string activeState;
-    
-    // private int topLevelNavActive; // The active main nav state
-    // private int subMenuGroupActive; // The active sub-nav state (within the main nav, where applicable)
-    // private int subSubMenuGroupActive; // The active sub-sub-nav state (where applicable)
-    
-    public CanvasGroup topLevelNavWorkout;
-    public CanvasGroup subNavWorkoutExercises;
-    public CanvasGroup subNavWorkoutData;
-    public CanvasGroup subNavWorkoutUpgrades;
-    
-    public CanvasGroup topLevelNavTrain;
-    public CanvasGroup subNavTrainSkills;
-    public CanvasGroup subSubNavTrainExercisesJumps;
-    public CanvasGroup subSubNavTrainExercisesSpins;
-    public CanvasGroup subSubNavTrainExercisesFlyingSpins;
-    public CanvasGroup subSubNavTrainExercisesOther;
-    public CanvasGroup subNavTrainUpgrades;
-    
-    public CanvasGroup topLevelNavEarn;
-    public CanvasGroup subNavEarnIncome;
-    public CanvasGroup subNavEarnUpgrades;
+    private string _activeState;
 
-    public CanvasGroup topLevelNavCompete;
-    public CanvasGroup subNavCompeteProgram;
-    public CanvasGroup subNavCompeteCompetition;
-
-
-
+    // Generate Lists
+    List<WorkOutButton> _workOutGenerators = new List<WorkOutButton>();
+    private List<EarnButton> _earnGenerators = new List<EarnButton>();
+    
     
     public void Start()
     {
         // Initial values
+        if (!_gameInitialized)
+            NewGame();
 
+    }
 
+    private void NewGame()
+    {
+        _money = 0;
+        _time = 1;
+        _gameInitialized = true;
     }
 
     public void Update()
     {
+        _dt = Time.deltaTime;
+        foreach (var gen in _workOutGenerators)
+        {
+            gen.CalcWorkout(_dt);
+        }
         
+        foreach (var gen in _earnGenerators)
+        {
+            gen.CalcEarnings(_dt);
+        }
+        
+        moneyDisplay.text = "Cash: " + _money;
     }
 
     
-    // Buttons
-    public void ClickCoins()
+    // Money Functions
+    
+    // Will Return true if it can be purchased and will deduct the amount
+    public bool MakePurchase(double cost)
     {
+        if (_money > cost)
+        {
+            _money -= cost;
+            return true;
+        }
 
+        return false;
     }
 
-    // public void SwitchTab(string newState)
-    // {
-    //     activeState = newState;
-    //     DisableCanvasGroups();
-    //     switch (activeState)
-    //     {
-    //         case "WorkOutExercises":
-    //             topLevelNavWorkout.alpha = 1;
-    //             topLevelNavWorkout.interactable = true;
-    //             topLevelNavWorkout.blocksRaycasts = true;
-    //             subNavWorkoutData.alpha = 1;
-    //             subNavWorkoutData.interactable = true;
-    //             subNavWorkoutData.blocksRaycasts = true;
-    //             subNavWorkoutExercises.alpha = 1;
-    //             subNavWorkoutExercises.interactable = true;
-    //             subNavWorkoutExercises.blocksRaycasts = true;
-    //             subNavWorkoutUpgrades.alpha = 0;
-    //             subNavWorkoutUpgrades.interactable = false;
-    //             subNavWorkoutUpgrades.blocksRaycasts = false;
-    //             break;
-    //         case "WorkOutUpgrades": 
-    //             topLevelNavWorkout.alpha = 1;
-    //             topLevelNavWorkout.interactable = true;
-    //             topLevelNavWorkout.blocksRaycasts = true;
-    //             subNavWorkoutData.alpha = 1;
-    //             subNavWorkoutData.interactable = true;
-    //             subNavWorkoutData.blocksRaycasts = true;
-    //             subNavWorkoutUpgrades.alpha = 1;
-    //             subNavWorkoutUpgrades.interactable = true;
-    //             subNavWorkoutUpgrades.blocksRaycasts = true;
-    //             subNavWorkoutExercises.alpha = 0;
-    //             subNavWorkoutExercises.interactable = false;
-    //             subNavWorkoutExercises.blocksRaycasts = false;
-    //             break;
-    //         case "TrainUpgrades":
-    //             topLevelNavTrain.alpha = 1;
-    //             topLevelNavTrain.interactable = true;
-    //             topLevelNavTrain.blocksRaycasts = true;
-    //             break;
-    //
-    //         
-    //     }
-    // }
+    public double GetMoney()
+    {
+        return _money;
+    }
 
-    // private void DisableCanvasGroups()
-    // {
-    //     topLevelNavWorkout.alpha = 0;
-    //     topLevelNavWorkout.interactable = false;
-    //     topLevelNavWorkout.blocksRaycasts = false;
-    //     topLevelNavTrain.alpha = 0;
-    //     topLevelNavTrain.interactable = false;
-    //     topLevelNavTrain.blocksRaycasts = false;
-    // }
+    public void AddMoney(double money)
+    {
+        _money += money;
+    }
+
+    // Generator Tracker Operations
+    public void RegisterGenerator(EarnButton gen)
+    {
+        _earnGenerators.Add(gen);
+    }
+    
+    public void RegisterGenerator(WorkOutButton gen)
+    {
+        _workOutGenerators.Add(gen);
+    }
     
 }
 
